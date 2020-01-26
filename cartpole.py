@@ -93,7 +93,7 @@ memory = Memory(namedtuple('Transition', ('log_prob', 'state_value', 'reward', '
 def reward_shaping(reward, done):
     return 0 if not done else 1
 
-agent = Agent(env.action_space.n)
+agent = Agent()
 coach = Coach(reward_shaping=reward_shaping)
 
 print(agent)
