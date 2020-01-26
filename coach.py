@@ -54,9 +54,6 @@ class Coach():
             score += reward
             step += 1
 
-            if done:
-                reward = -1.0
-
             reward = 0 if not done else -1
 
             if render:
