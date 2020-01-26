@@ -15,7 +15,6 @@ class Coach():
         step = 0
 
         # reset game
-        agent.reset()
         state = env.reset()
         state = preprocess(state)
 
@@ -33,11 +32,9 @@ class Coach():
             action_probs, state_value = agent.act(state)
 
             dist = torch.distributions.Categorical(action_probs)
-            t_dist = torch.distributions.Categorical(action_probs)
-
             r = random.random()
 
-            if r < self.EPSILON:
+            if r < self.EPSILON and test:
                 action = dist.sample()
             else:
                 action = torch.argmax(action_probs)
@@ -61,6 +58,6 @@ class Coach():
 
             # prime next state
             state = next_state
-            memory.push(t_dist.log_prob(action), state_value, reward)
+            memory.push(dist.log_prob(action), state_value, reward, dist.entropy())
 
         return memory, score, step
