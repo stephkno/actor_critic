@@ -2,7 +2,7 @@ import torch
 
 #### PyTorch Actor Critic Model
 class Agent(torch.nn.Module):
-    def __init__(self, in_size=10, hidden=64, out=1):
+    def __init__(self, in_size=4, hidden=64, out=2):
         super(Agent, self).__init__()
 
         self.actor = torch.nn.Sequential(
