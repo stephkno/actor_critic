@@ -34,7 +34,7 @@ class Coach():
             dist = torch.distributions.Categorical(action_probs)
             r = random.random()
 
-            if r < self.EPSILON and test:
+            if r < self.EPSILON and not test:
                 action = dist.sample()
             else:
                 action = torch.argmax(action_probs)
