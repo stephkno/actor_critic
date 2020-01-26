@@ -1,4 +1,3 @@
-#!/Users/stephen/miniconda3/bin/python3
 import gym
 import torch
 import datetime
