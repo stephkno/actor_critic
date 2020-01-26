@@ -4,6 +4,7 @@ import datetime
 import random
 import sys
 from matplotlib import pyplot as plt
+from collections import namedtuple
 from agent import Agent
 from memory import Memory
 from coach import Coach
@@ -16,18 +17,18 @@ else:
 torch.manual_seed(0)
 
 def preprocess(state):
-    #state extraction for Pong RAM
-    #state = torch.tensor(state[[0x31, 0x36, 0x38, 0x3A, 0x3C]])/255.0
-    state = torch.tensor(state)/255.0
+    state = torch.tensor(state)
     return state
-def learn(episode):
+def learn(agent, episode):
+
+    optimizer = torch.optim.Adam(params=agent.parameters(), lr=rate)
     R = 0.0
     log_probs = []
     value_loss = []
     returns = []
 
     #state value calculation & preprocessing
-    for i,(_,_,reward) in enumerate(reversed(episode)):
+    for i,(_,_,reward,_) in enumerate(reversed(episode)):
         R = reward + (GAMMA * R)
         returns.insert(0,R)
 
@@ -36,23 +37,24 @@ def learn(episode):
     std = returns.std() if returns.std() > 0 else 1
     returns = (returns - mean)/std
 
-    log_prob, values, _ = zip(*episode)
+    log_prob, values, _, entropy = zip(*episode)
     episode = list(zip(log_prob, values, returns))
+    #entropy = torch.tensor(entropy).mean()
 
     #calculate policy error
     for i, (log_prob, state_value, returns) in enumerate(random.sample(episode,k=len(episode))):
         advantage = returns - state_value
         log_probs.append(-log_prob * advantage)
-        value_loss.append(0.5*(state_value - returns.unsqueeze(0)).pow(2))
+        value_loss.append((state_value - returns.unsqueeze(0)).pow(2))
 
     #update parameters
-    print("Updating parameters")
     optimizer.zero_grad()
-    loss = torch.cat((torch.cat(log_probs), torch.cat(value_loss))).mean()
+    loss = torch.cat(log_probs).mean() + torch.cat(value_loss).mean()
     loss.backward()
-    print("Loss: {}".format(loss.item()))
     optimizer.step()
     memory.reset()
+
+    return agent
 #loading/saving checkpoint for testing
 def load_agent():
     print("Loading agent")
@@ -73,48 +75,52 @@ epoch = 0
 epochs = 1000
 episode = 1
 init_action = 1
-GAMMA = 0.9
+GAMMA = 0.99
 EPSILON = 1.0
-rate = 0.001
-UPDATE_INTERVAL = 1
-TARGET_UPDATE_INTERVAL = 10
-running_scores = []
+rate = 0.0005
+UPDATE_INTERVAL = 10
+PLOT_INTERVAL = 1
 plot = True
+running_scores = []
 
 env_name = "CartPole-v0"
 env = gym.make(env_name)
 
 #create objects
-memory = Memory()
+memory = Memory(namedtuple('Transition', ('log_prob', 'state_value', 'reward', 'entropy')))
+
 agent = Agent(env.action_space.n)
 coach = Coach()
 
-optimizer = torch.optim.Adam(params=agent.parameters(), lr=rate)
 print(agent)
+
+if test:
+    load_agent()
 
 #training loop
 while True:
-
     memory, score, steps = coach.run_episode(agent, env, memory, preprocess, test)
     total_score += score
     total_steps += steps
 
-    print("[Episode {} Score:{}]".format(episode, score))
-    running_scores.append(score)
-
+    #print("[Episode {} Score:{}]".format(episode, score))
     if not test and episode % UPDATE_INTERVAL == 0:
-        learn(memory.episode)
+        agent = learn(agent, memory.episode)
 
-        if score > highest:
-            save_model(agent)
-            highest = score
-        if plot:
-            plt.plot(range(episode), running_scores)
-            plt.draw()
-            plt.pause(0.0000001)
-        #display episode score
-        print("[Episode {}|Step {} Score:{} High:{} Time:{}]".format(episode, total_steps, total_score, highest, datetime.datetime.now()))
-        total_score = 0
+        if episode % PLOT_INTERVAL == 0:
+            if plot:
+                plt.plot(range(len(running_scores)), running_scores)
+                plt.draw()
+                plt.pause(0.0000001)
+
+            #display episode score
+            print("[Episode {}|Step {} Score:{} High:{} Time:{}]".format(episode, total_steps, total_score, highest, datetime.datetime.now()))
+
+            if total_score > highest:
+                save_model(agent)
+                highest = total_score
+            running_scores.append(total_score)
+            total_score = 0
 
     episode += 1
 
