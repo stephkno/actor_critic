@@ -1,3 +1,4 @@
+#!/Users/stephen/miniconda3/bin/python3
 import gym
 import torch
 import datetime
@@ -17,6 +18,8 @@ else:
 torch.manual_seed(0)
 
 def preprocess(state):
+    #state extraction for Pong RAM
+    #state = torch.tensor(state[[0x31, 0x36, 0x38, 0x3A, 0x3C]])/255.0
     state = torch.tensor(state)
     return state
 def learn(agent, episode):
@@ -88,9 +91,11 @@ env = gym.make(env_name)
 
 #create objects
 memory = Memory(namedtuple('Transition', ('log_prob', 'state_value', 'reward', 'entropy')))
+def reward_shaping(reward, done):
+    return 0 if not done else 1
 
 agent = Agent(env.action_space.n)
-coach = Coach()
+coach = Coach(reward_shaping=reward_shaping)
 
 print(agent)
 
